@@ -1,0 +1,162 @@
+---
+title: "Lab 2"
+author:
+- Team 1
+- Section 6
+subtitle: W203 Statistics for Data Science
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+General data analysis:
+
+Data quality is very important in statistical analysis. Since incorrect data can lead to incorrect results, we wanted to only perform analysis on individuals whose responses were trustworthy. Namely, we pre-filtered our participants based on their "RESPONSE QUALITY" questions. Namely, we only considered those who were "Never" or "Some of the time" insincere in their responses, and those who were answered questions honestly "Most of the time" and "Always." For those who were most of the time honest and sincere, a majority of their answers were reliable, so they will provide correct information more often than incorrect information. To do this, we generated a new dataset stored under A. The reduced the sample from 2500 samples to 2064 samples:
+
+```{r}
+setwd("~/Desktop/Stone/Berkeley_MIDS/Statistics/github/lab_2/")
+full_data <- read.csv('anes_pilot_2018.csv')
+
+library(ggplot2)
+suppressMessages(library(dplyr))
+suppressMessages(library(reshape2))
+
+A <- full_data %>% filter(honest >= 4 & nonserious <= 2)
+```
+
+#Question 1
+
+Introduce your topic briefly.
+
+The relevant questions were this study are stored under ftjournal and ftpolice, which represent responses from the participants on how highly they would rate journalists and police respectively. Responses range from 1 to 100, but the survey was presented as a thermometer with 9 labels ranging from very cold (numerically 0) and very warm (numerically 100). We feel that because of this presentation, the rankings are similar to a Likert scale, meaning we do not have a metric variable. As a result, we plan to bin respondents into 1 of 9 categories as defined by the scale. 
+
+One deficiency here is that "rating" a group does not necessary mean respect for the group. One can think that a group is effective at their job, but still not have respect for them, for example, if they believe they sometimes perform their jobs unethically. However, we do not have better data to access respect. 
+
+
+Perform an exploratory data analysis (EDA) of the relevant variables.
+
+We wanted to answer this question from the perspective of each individual voter. Namely, for each voter, do they respect the police or journalists more? To address this, we require that all respondents answer both questions, and filtered out those that did not answer either or both question (response -7). Also, to narrow the population down to US voters, we only looked at individuals who were registered to vote. Even if they did not vote in a particular election, we know that they were least eligible to. There were only two individuals who did not respond to ftjournal, and all responded to ftpolice. In addition, 316 were not registered to vote.  
+
+```{r }
+A %>% filter(ftjournal >=0 & ftpolice >=0) %>% dim
+A %>% filter(ftjournal >=0 & ftpolice >=0) %>% filter(reg<=2) %>% dim
+JR_PL_data <- A %>% filter(ftjournal >=0 & ftpolice >=0) %>% filter(reg<=2) %>% select(caseid, ftpolice, ftjournal)
+
+```
+
+We will bin responses into 1 of 9 categories as presented in the study giving each bin a rank. This is because we cannot confidently say that a score of 99 is definitively better than 98, since they both fall within "Quite Warm" and "Very Warm." The lower the rank, the lower the respondents rated each group. 
+
+```{r}
+#Ensures we get the same bins as in the study
+ftbins <- c(-0.01,15,30,40,50,60,70,85,99.99,100)
+
+JR_PL_ordinal_data <- data.frame(
+  cut(JR_PL_data$ftpolice, breaks=ftbins) %>% as.numeric(),
+  cut(JR_PL_data$ftjournal, breaks=ftbins) %>% as.numeric()
+)
+colnames(JR_PL_ordinal_data) <- c("Police Rating", 'Journalist Rating')
+
+JR_PL_ordinal_data$Police_minus_Journalist <- JR_PL_ordinal_data$`Police Rating` - JR_PL_ordinal_data$`Journalist Rating`
+
+ggplot(data = JR_PL_ordinal_data, aes(x=Police_minus_Journalist)) +
+  geom_histogram(alpha=0.5,
+                 binwidth = 1) +
+  geom_density(alpha=0.5)+
+  labs(title='Difference between police ratings and journalist ratings',
+       x='Difference per respondent', 
+       y = "Count") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylim(0,275)+
+  scale_x_continuous(breaks=seq(-10, 10, by=1))+
+  stat_bin(aes(y=..count.., label=ifelse(..count.. > 0, ..count.., "")), 
+           geom="text", 
+           vjust=-.5,
+           binwidth=1,
+           )
+```
+
+We see that while the distribution mode is 0, but there are sharp peaks in the positive region as well (meaning these individuals rated the police higher than the journalists).
+
+Based on your EDA, select an appropriate hypothesis test. 
+The most appropriate test here is the Wilcoxon signed-rank test. The assumptions of this test are:
+
+1. Data is paired, but each pair is iid. The data is certainly paired since it is the same respondent on two different questions. The samples certainly represent the pool of voters who responded to the survey.
+
+2. Within-pair differences have meaning. The differences between 99 and 0 response (corresponding to bin 1 versus 9) is larger than between 50 and 0 (bins 1 and 4). We do not want As a result, we can subtract the ranks and look at, for each respondent, what the difference between ranking of each group is between police rating and journalist rating. 
+
+
+```{r }
+library(ggplot2)
+suppressMessages(library(dplyr))
+suppressMessages(library(reshape2))
+
+setwd("~/Desktop/Stone/Berkeley_MIDS/Statistics/github/lab_2/")
+A <- read.csv('anes_pilot_2018.csv')
+A_q1_all_respondents <- A %>% filter(ftjournal >=0) %>% select(caseid, ftjournal, ftpolice)
+
+#reshape data into shape suitable for ggplot
+melt.hist <- melt(select(A_q1_all_respondents, ftjournal, ftpolice))
+
+#define the breaks desired as specified in the ft thermometer
+ftbins <- c(0,15,30,40,50,60,70,85,100)
+
+p <- ggplot(data = melt.hist) +
+  geom_histogram(aes(x=value, y=(..count..), fill=variable),
+                 alpha=0.4,
+                 breaks=ftbins,
+                 position='identity') +
+  labs(title='Histogram of ratings for police versus journalists',
+       x='Value intervals selected by respondents', 
+       y = "Count of respondents",
+       fill = "Group") +
+  scale_x_continuous(breaks=ftbins)+
+  scale_fill_discrete(labels = c("Journalists", "Police"))+
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+p
+```
+
+```{r}
+A_q1_all_respondents$difference <- A_q1_all_respondents$ftjournal - A_q1_all_respondents$ftpolice
+
+ggplot(data = A_q1_all_respondents, aes(x=difference)) +
+  geom_histogram(alpha=0.5,
+                 fill = 'green',
+                 binwidth = 5) +
+  geom_density(alpha=0.5)+
+  labs(title='Difference between journalist ratings and police ratings',
+       x='Difference', 
+       y = "Count") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+#Question 1: Do US voters have more respect for the police or for journalists?
+
+Take ftjournal and ftpolice fields. This is a direct rating of the two groups we're interested in. Gaps might be that some people may not interpret properly...
+
+EDA:
+There were two respondents with an answer of -7 for ftjournal, which means they skipped the question. Since we do not have an answer from those subjects, we would like to eliminate those subjects from the study. All respondents responded to the police favor, so in theory we can keep the subjects that responded to police, but we have no means of comparison.
+
+```{r}
+print(summary(A$ftjournal));
+print(summary(A$ftpolice));
+
+#Get new dataframe with only respondents necessary fields (caseid, ftjournal, ftpolice)
+A_q1_all_respondents <- select(filter(A, ftjournal >=0), caseid, ftjournal, ftpolice)
+```
+
+
+H0 is difference is 0
+Ha is that difference is non-zero
+
+```{r}
+
+```
+
+
+
+#question 2
+
