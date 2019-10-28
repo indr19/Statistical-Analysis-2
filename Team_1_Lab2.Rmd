@@ -20,7 +20,6 @@ full_data <- read.csv('anes_pilot_2018.csv')
 
 library(ggplot2)
 suppressMessages(library(dplyr))
-suppressMessages(library(reshape2))
 
 A <- full_data %>% filter(honest >= 4 & nonserious <= 2)
 ```
@@ -41,7 +40,9 @@ We wanted to answer this question from the perspective of each individual voter.
 ```{r }
 A %>% filter(ftjournal >=0 & ftpolice >=0) %>% dim
 A %>% filter(ftjournal >=0 & ftpolice >=0) %>% filter(reg<=2) %>% dim
-JR_PL_data <- A %>% filter(ftjournal >=0 & ftpolice >=0) %>% filter(reg<=2) %>% select(caseid, ftpolice, ftjournal)
+JR_PL_data <- A %>% 
+  filter(ftjournal >=0 & ftpolice >=0) %>% 
+  filter(reg<=2) %>% select(caseid, ftpolice, ftjournal)
 
 ```
 
@@ -57,7 +58,9 @@ JR_PL_ordinal_data <- data.frame(
 )
 colnames(JR_PL_ordinal_data) <- c("Police Rating", 'Journalist Rating')
 
-JR_PL_ordinal_data$Police_minus_Journalist <- JR_PL_ordinal_data$`Police Rating` - JR_PL_ordinal_data$`Journalist Rating`
+JR_PL_ordinal_data$Police_minus_Journalist <- 
+  JR_PL_ordinal_data$`Police Rating` - 
+  JR_PL_ordinal_data$`Journalist Rating`
 
 ggplot(data = JR_PL_ordinal_data, aes(x=Police_minus_Journalist)) +
   geom_histogram(alpha=0.5,
@@ -73,7 +76,7 @@ ggplot(data = JR_PL_ordinal_data, aes(x=Police_minus_Journalist)) +
   stat_bin(aes(y=..count.., label=ifelse(..count.. > 0, ..count.., "")), 
            geom="text", 
            vjust=-.5,
-           binwidth=1,
+           binwidth=1
            )
 ```
 
@@ -86,77 +89,99 @@ The most appropriate test here is the Wilcoxon signed-rank test. The assumptions
 
 2. Within-pair differences have meaning. The differences between 99 and 0 response (corresponding to bin 1 versus 9) is larger than between 50 and 0 (bins 1 and 4). We do not want As a result, we can subtract the ranks and look at, for each respondent, what the difference between ranking of each group is between police rating and journalist rating. 
 
-
-```{r }
-library(ggplot2)
-suppressMessages(library(dplyr))
-suppressMessages(library(reshape2))
-
-setwd("~/Desktop/Stone/Berkeley_MIDS/Statistics/github/lab_2/")
-A <- read.csv('anes_pilot_2018.csv')
-A_q1_all_respondents <- A %>% filter(ftjournal >=0) %>% select(caseid, ftjournal, ftpolice)
-
-#reshape data into shape suitable for ggplot
-melt.hist <- melt(select(A_q1_all_respondents, ftjournal, ftpolice))
-
-#define the breaks desired as specified in the ft thermometer
-ftbins <- c(0,15,30,40,50,60,70,85,100)
-
-p <- ggplot(data = melt.hist) +
-  geom_histogram(aes(x=value, y=(..count..), fill=variable),
-                 alpha=0.4,
-                 breaks=ftbins,
-                 position='identity') +
-  labs(title='Histogram of ratings for police versus journalists',
-       x='Value intervals selected by respondents', 
-       y = "Count of respondents",
-       fill = "Group") +
-  scale_x_continuous(breaks=ftbins)+
-  scale_fill_discrete(labels = c("Journalists", "Police"))+
-  theme_classic() +
-  theme(plot.title = element_text(hjust = 0.5))
-p
-```
-
-```{r}
-A_q1_all_respondents$difference <- A_q1_all_respondents$ftjournal - A_q1_all_respondents$ftpolice
-
-ggplot(data = A_q1_all_respondents, aes(x=difference)) +
-  geom_histogram(alpha=0.5,
-                 fill = 'green',
-                 binwidth = 5) +
-  geom_density(alpha=0.5)+
-  labs(title='Difference between journalist ratings and police ratings',
-       x='Difference', 
-       y = "Count") +
-  theme_classic() +
-  theme(plot.title = element_text(hjust = 0.5))
-```
-
-#Question 1: Do US voters have more respect for the police or for journalists?
-
-Take ftjournal and ftpolice fields. This is a direct rating of the two groups we're interested in. Gaps might be that some people may not interpret properly...
-
-EDA:
-There were two respondents with an answer of -7 for ftjournal, which means they skipped the question. Since we do not have an answer from those subjects, we would like to eliminate those subjects from the study. All respondents responded to the police favor, so in theory we can keep the subjects that responded to police, but we have no means of comparison.
-
-```{r}
-print(summary(A$ftjournal));
-print(summary(A$ftpolice));
-
-#Get new dataframe with only respondents necessary fields (caseid, ftjournal, ftpolice)
-A_q1_all_respondents <- select(filter(A, ftjournal >=0), caseid, ftjournal, ftpolice)
-```
-
+3. I think the flowchart is wrong.
 
 H0 is difference is 0
 Ha is that difference is non-zero
 
 ```{r}
-
+wilcox.test(JR_PL_ordinal_data$`Police Rating`, JR_PL_ordinal_data$`Journalist Rating`, paired = TRUE)
 ```
 
-
+Very large statistical difference. Effect size...
 
 #question 2
 
+Introduce your topic briefly.
+We will use self-classified categories from pid7x. The reason we chose this over how participants actually voted in 2016 and 2018 is that sometimes in certain elections, self-identified Democrats can vote Republican and vice-versa. Blah blah blah
+
+```{r}
+AG_PY_data <- A %>% mutate(party = 
+                             ifelse(pid7x == 1 | pid7x == 2, 'D',
+                                    ifelse(pid7x == 6 | pid7x == 7, 'R', 'I'))) %>% 
+  mutate(age = 2018 - birthyr) %>%
+  filter(party != 'I', reg == 1 | reg == 2) %>%
+  select(age, party)
+```
+
+
+Perform an exploratory data analysis (EDA) of the relevant variables
+
+We can plot a histogram of the ages differentiated by parties. We see that there appears to be a large population from 20 to 40 for democrats 
+
+```{r}
+ggplot(data = AG_PY_data) +
+  geom_histogram(aes(x=age, y=(..density..), fill=party),
+                 alpha=0.3,
+                 breaks=seq(15,100,5),
+                 position='identity') +
+  labs(title='Frequency of Age grouped by political leaning',
+       x='Age', 
+       y = "Frequency of respondents",
+       fill = "Party") +
+  scale_fill_manual(labels = c("Democrats", "Republicans"), 
+                    values=c("blue1", "red1"))+
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(breaks=seq(15,100, by=5))
+
+```
+
+Based on your EDA, select an appropriate hypothesis test
+
+Independent two sample t test. Metric variable, large sample size. 
+
+H0 is that the two samples have the same means
+H1 is that the means are not equal
+```{r}
+t.test(AG_PY_data[AG_PY_data$party == 'D',]$age, 
+       AG_PY_data[AG_PY_data$party == 'R',]$age, 
+       paired = FALSE)
+```
+
+Effect size...
+
+#Question 3
+
+Introduce your topic briefly.
+
+We will again take only those who are registered to vote, and this time identifies as Independent. The response we will analyze is whether these individuals approve of the Mueller investigations stored in the muellerinv variable. To address the question, we will consider a response of 5,6, or 7 as thinking the investigation was baseless (or strongly disapprove the decision to mildly disapprove the investigation). This question asks whether the respondent approves or disapproves which may not fully capture whether the respondent thought the investigation was baseless. They could have found a reason for the investigation but did not like the approach taken for example. However, this is the closest we could get.
+
+```{r}
+FBI_IN_data <- A %>% filter(pid7x <= 5 & pid7x >=3) %>% 
+  select(muellerinv)
+```
+
+We can see from the histogram that the distribution peaks 3 times, at strongly disapprove, strongly approve, and "Neither approve nor disapprove," although there appears to be a smaller population that is strongly disapprove.  
+
+```{r}
+ggplot(data = FBI_IN_data) +
+  geom_histogram(aes(x=muellerinv, y=(..count..)),
+                 breaks=seq(0.5,7.5,1)) +
+  labs(title='FBI investigation rating by Independent voters',
+       x='Rating', 
+       y = "Count of respondents")+
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(breaks=seq(0.5,7.5, by=1))
+
+```
+
+Best test is the Wilcoxon Rank-Sum test because we have an ordinal variable with no metric structure. It is also extremely skewed to the tails for ratings of 1 and 7.
+
+H0 is that the mean is 4 (think it is baseless)
+H1 is that mean is not 4.
+
+```{r}
+wilcox.test(FBI_IN_data$muellerinv, mu = 4)
+```
