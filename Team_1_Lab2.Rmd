@@ -303,14 +303,20 @@ Since our Cohen's D value is 0.246, it is between what is typically considered s
 
 Introduce your topic briefly.
 
-We will again take only those who are registered to vote, and this time identifies as Independent. The response we will analyze is whether these individuals approve of the Mueller investigations stored in the muellerinv variable. To address the question, we will consider a response of 5,6, or 7 as thinking the investigation was baseless (or strongly disapprove the decision to mildly disapprove the investigation). This question asks whether the respondent approves or disapproves which may not fully capture whether the respondent thought the investigation was baseless. They could have found a reason for the investigation but did not like the approach taken for example. However, this is the closest we could get.
+As in question 2, we will again take only those who are registered to vote, and this time identifies as Independent. The response we will analyze is whether these individuals approve of the Mueller investigations stored in the muellerinv variable. To address the question, we will consider a response of 5,6, or 7 as thinking the investigation was baseless. These responses represent strongly disapprove to mildly disapprove of the investigation, while the rest of the variables represents no opinion, or some degree of approval. Since this question asks whether the respondent approves or disapproves, this may  not fully capture whether the respondent thought the investigation was baseless. For example, these individuals who disapproved could have found that the investigation was necessary, but that the execution was poor and therefore disapprove this. Some degree of disapproval is necessary for considering the investigation baseless, but not necessarily sufficient. However, this is the closest we could get. Below, we filter the respondents based on their party, and select their 
 
 ```{r}
 FBI_IN_data <- A %>% filter(pid7x <= 5 & pid7x >=3) %>% 
   select(muellerinv)
 ```
 
-We can see from the histogram that the distribution peaks 3 times, at strongly disapprove, strongly approve, and "Neither approve nor disapprove," although there appears to be a smaller population that is strongly disapprove.  
+First, we generate a summary of the muellerinv variable for Independent voters.
+
+```{r}
+summary(FBI_IN_data$muellerinv)
+```
+
+We can see that the minimum value is 1 and maximum is 7, meaning a response for everyone in this sample was recorded (since -7 means no response). The median is at 4, which would also be the mean if the distribution were normal. However, the mean is slightly smaller at 3.68. We can generate a histogram of this variable.
 
 ```{r}
 ggplot(data = FBI_IN_data) +
@@ -325,11 +331,41 @@ ggplot(data = FBI_IN_data) +
 
 ```
 
-Best test is the Wilcoxon Rank-Sum test because we have an ordinal variable with no metric structure. It is also extremely skewed to the tails for ratings of 1 and 7.
+We can see that the distribution peaks 3 times, at strongly disapprove (7), strongly approve (1), and "Neither approve nor disapprove," (4). There is a smaller population that strongly disapprove than strong approve. Since we classify a neural response (4) as not baseless, we see that there are two big peaks for not baseless, and one large peak for thinking the investigation was baseless.
 
-H0 is that the mean is 4 (think it is baseless)
-H1 is that mean is not 4.
+For this question, since we care about the proportion of individuals who believe the investigation was baseless, we will use a binomial test for population proportion. This test compares the number of successes (in this case we call that the number of people who believe the investigation is baseless) to the hypothesized number of successes for a sample of particular size. The assumptions for this test includes:
+
+1. Samples are dichotomous and nominal. This is certainly the case here: the subjects are classified as either believing the investigation was baseless or not, which does not have a numerical value associated with them.
+
+2. iid samples. This is the case since each subject's decision in the survey does not influence other subjects. In terms of identical distribution, this can be assumed since all subjects are drawn from the population of survey takers.
+
+Our hypothesis will be setup as follows, with the variable "p" representing the proportion of the population. Our null hypothesis is that the same proportion of individuals believe the investigation was baseless as those who did not. We perform a 2-tailed test because we do not have a strong prior that the population is strongly leaning in either direction. We also set our confidence level at 0.05, a standard level.
+
+$$
+\begin{aligned}
+H_0: &p = 0.5\\
+H_a: &p \ne 0.5\\
+\end{aligned}
+$$
+
+To conduct the test, we can use the binom.test function in R. This takes a parameter for number of successes (number of people who believe the investigation was baseless), number of trials (total number of people in the sample), and 't' for two-sided test:
 
 ```{r}
-wilcox.test(FBI_IN_data$muellerinv, mu = 4)
+binom.test(sum(FBI_IN_data$muellerinv >=5), 
+          length(FBI_IN_data$muellerinv), 
+          p=0.5, 
+          alternative = 't')
 ```
+
+We see that since the p-value is much less than 0.05, we can reject the null hypothesis and say that the proportion of individuals think the investigation was baseless versus those who think otherwise. To answer the original question, since the median was 4 (representing neutral decision), we can say that the majority of Independent voters believed that the investigation was in fact not baseless.
+
+In order to calculate the practical significance, we will use the metric of Cohen's g, which is valid for the one-sample binomial test where the null hypothesis states that the proportion is 0.5. This is exactly our case here. Cohen's g is simply the difference of sample proportion of individuals who believed the investigation was baseless with 0.5, and then taking the absolute value. The closer the sample proportion is to 0.5, the smaller the effect size.
+
+```{r}
+cohen.g <- abs(sum(FBI_IN_data$muellerinv >=5) / length(FBI_IN_data$muellerinv) - 0.5)
+print(cohen.g)
+```
+
+We get an effect size close 0.2, which is within a medium effect size. Typically, the ranges are <0.15 is small, 0.15-0.25 is medium, and >=0.25 is large. We can conclude that our study is highly statistically significant with medium level of practical significance.
+
+
