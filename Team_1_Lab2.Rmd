@@ -103,32 +103,40 @@ H_a: &D\ne 0
 \end{aligned}
 $$
 
+We also note that we will use a two-tailed test since we do not have prior evidence that the rating of one group should be greater than the other.
+
 To conduct the test, we use the following:
 ```{r}
-wilcox.test(JR_PL_ordinal_data$`Police Rating`, JR_PL_ordinal_data$`Journalist Rating`, paired = TRUE)
+wilcox.test(JR_PL_ordinal_data$`Police Rating`, 
+            JR_PL_ordinal_data$`Journalist Rating`,     
+            paired = TRUE)
 ```
 
 We see that there's a very large statistical difference between the rating of the two groups, with a p-value << 0.001, and much less than alpha. This means that since p-value = 2.2e-16, if H0 was true, we had a 2.2e-16 chance of seeing data as least as extreme as what was observed. This is an extremely low value. We can then reject our null hypothesis in favor of the alternative that the difference in rating between the two groups is in fact not 0. Since the paired difference shows that the rating for police is typically higher than for journalists, the answer to our original question is that US voter have more respect for the police than they do for journalists.
 
-In order to compute the effect size, we will use the proportion approach described in the Async where we look at:
+In order to compute the effect size, we will use the general approach discussed in Async where we compute a correlation-like value by dividing the z-score of the p-value by sqrt(n). We can do this because our sample size is very large (n=1746 to be exact).
 $$
-r = \frac{\sum \text{positive ranks} - \sum \text{negative ranks}}{\sum \text{all ranks}}
+r = \frac{z}{\sqrt{n}}
 $$
 
 Our proportion approach produces an effect size
 ```{r }
-(sum(JR_PL_ordinal_data$Police_minus_Journalist > 0) - 
-sum(JR_PL_ordinal_data$Police_minus_Journalist < 0)) /
-length(JR_PL_ordinal_data$Police_minus_Journalist)
-
+p.value <- 1.169115e-29 #from wilcox.test
+z.score <- -qnorm(p.value/2)
+effect.correlation <- z.score / sqrt(length(JR_PL_ordinal_data$Police_minus_Journalist))
+print(effect.correlation)
 ```
 
-This means that approximately 14% more of total US voters from this sample rated police higher than those that rated police lower (about 50% ranked police higher, and 36% ranked journalists higher). This is on the same scale as the correlation r, and between a small and medium effect size. While the test is highly statistically significant, we see that about 14% more of the total sample ranked police higher than journalists, which is a decent proportion of individuals, but also not gigantic.  
+The effect correlation r is between small (0.1) and medium (0.3) effect size. While the test is highly statistically significant, the effect size is not large, and could be considered weak. As a result, there is not a large practical significance in the results. 
 
-#question 2
+\pagebreak
+
+#Question 2
 
 Introduce your topic briefly.
-We will use self-classified categories from pid7x. The reason we chose this over how participants actually voted in 2016 and 2018 is that sometimes in certain elections, self-identified Democrats can vote Republican and vice-versa. Blah blah blah
+In order to determine age, the variable birthyr (year of birth) will be subtracted from 2018, which is the year that the survey was conducted. This is the best guess for a person age in years since we do not have information on their birth month or other details. As a result of this however, we may be -1 year off from the person's real age in years. Also, because we do not have month information, a person's age in years is the best we can do.
+
+To determine voter status and party affliation, we will use self-classified categories from pid7x. The reason we chose this over how participants actually voted in 2016 and 2018 is that sometimes in certain elections, self-identified Democrats can vote Republican and vice-versa because they happen to strongly favor a particular candidate of another party, or strongly disfavor their own party's candidate. This voting behavior does not change their true party affliation, and the best guess we have as to whether someone is Democrat or Republican is what they consider themselves to be. The following lines will collect age and party information as described:
 
 ```{r}
 AG_PY_data <- A %>% mutate(party = 
@@ -142,7 +150,29 @@ AG_PY_data <- A %>% mutate(party =
 
 Perform an exploratory data analysis (EDA) of the relevant variables
 
-We can plot a histogram of the ages differentiated by parties. We see that there appears to be a large population from 20 to 40 for democrats 
+We first example the ages variable. From the summary below:
+
+```{r}
+summary(AG_PY_data$age)
+```
+
+we can see that the ages represent a large range, from the minimum voting age 18 up to age 91. There are no missing values in the age. The median is 57, while mean is a little over 54. We can also get a sense of the ages of Democratic versus Republican voters using summary as well:
+
+```{r}
+AG_PY_data %>% filter(party == 'D') %>% summary
+AG_PY_data %>% filter(party == 'R') %>% summary
+```
+
+We see that the min/max ages for both groups are very similar, but the median/mean seems to indicate that Republicans seem to be on average a bit over. We also want to get a sense of whether there is an equal number of Democrats and Republicans in our sample
+
+```{r}
+AG_PY_data %>% filter(party == 'D') %>% dim
+AG_PY_data %>% filter(party == 'R') %>% dim
+```
+
+Our total sample size is 1135. It appears that there are 203 more Democrats than Republicans in our sample. In plotting a histogram, since there is class imbalance, it would make more sense to plot a density histogram rather than a count histogram in order to get a better sense of the distribution of age within the parties. If we were to plot only the count, we would expect Democrats to dominate many of the bins simply due to the fact that there are many more of them.
+
+To see the distribution of age for Democrats versus Republicans, we can plot a density histogram of the ages differentiated by parties.
 
 ```{r}
 ggplot(data = AG_PY_data) +
@@ -162,19 +192,112 @@ ggplot(data = AG_PY_data) +
 
 ```
 
+We see that there appears to be a much larger population from 20 to 40 for Democrats than Republicans, while from ages 45 and up, there are at least as many Republicans as there are Democrats for all bins, with the exception of the very last bin, where the oldest candidate (91 years) was Democratic. 
+
 Based on your EDA, select an appropriate hypothesis test
 
-Independent two sample t test. Metric variable, large sample size. 
+Since we have a metric variable, we do not know the population variable, and there is no natural pairing between the participants across parties, we would like to perform an independent two sample t test. 
 
-H0 is that the two samples have the same means
-H1 is that the means are not equal
+First, we confirm that all of the assumptions are met for an independent sample t test.
+
+1. We have ratio data (age), since we are on a metric scale, and there is an absolute zero (age = 0). We can add/subtract/take ratios of age and get sensible statistics.
+
+2. iid observations. Like in question 1, one subject's age will not influence another's age, so there is independence. They are from the same population of individuals who responded to the survey. 
+
+3. normal population: We know that since our sample size is very large (n=1135, >>30), by the Central Limit Theorem, the sampling distribution of our mean will be very close to normal. This makes the t-test valid even if the population distribution is not exactly normal. To show that the sampling distribution of the mean is normal, we can apply a bootstrap technique. The basic approach is to first treat the sample as the population, and sample from that "population" with replacement some number of N samples, each with sample size the original size. Calculating the statistic (in this case the mean) on each of these N samples gives a rough estimation for the sampling distribution of the statistic. Bootstrapping also provides a consistent estimate, meaning as the original sample size grows, the estimated sampling distribution approaches the true sampling distribution. 
+
+```{r }
+library(bootstrap)
+
+#using skipped variable:
+#sample with replacement length(AG_PY_data$age) sample size
+#1000 times
+#report the mean of each sample
+
+bootstrapped_samples <- bootstrap(AG_PY_data$age, 1000, function(x){mean(x)})
+
+p <- ggplot() +
+  aes(bootstrapped_samples$thetastar)+
+  geom_histogram(fill="white", 
+                 color="black", 
+                 binwidth = 0.05)+
+  labs(title='Boostrapped samples of the age variable',
+       x='Bootstrapped average of age', 
+       y = 'Number of Voters') +
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(breaks=seq(0.0, 2.5, by=0.1))
+p  
+shapiro.test(bootstrapped_samples$thetastar)
+```
+
+We see that the shapiro.test has a large p-value, meaning we have support for the null hypothesis that the sampling distribution of the mean age is normal.
+
+4. No outliers in the data. A common way to detect outliers is using a boxplot. The interquartile range represents the value of the 3rd quartile minus the 1st quartile. Outliers can be viewed as data point lying outside of 1.5 times the interquartile range above the upper quartile or below the lower quartile. ggplot's geom_boxplot will automatically draw boxplots with outliers, which we will display as red dots. We can see from the plot generated that there are no outliers.
+
+```{r}
+ggplot(data = AG_PY_data) +
+  geom_boxplot(aes(x=party, y=age), 
+  position = "dodge2",
+  outlier.color = 'red')+
+  labs(title='Boxplot of ages by Democratic and Republican voters',
+       x='Party', 
+       y='Age') +
+  scale_x_discrete(
+         labels=c("Democrats","Republican")) +
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+5. Homogeneity of Variance. We need to determine whether the standard deviation of our two independent samples are equivalent or different. To do this, we'll apply Levene’s test at a significance level of 0.05 (a typically accepted value). The setup as follows (letting sigma_D/sigma_R representing population standard deviations of Democrats and Republicans):
+
+$$
+\begin{aligned}
+H_0: &\sigma_D = \sigma_R\\
+H_a: &\sigma_D \ne \sigma_R
+\end{aligned}
+$$
+
+We apply Levene's test for Equality Of Variances from the inferr package, and return the p-value for the test:
+```{r}
+library(inferr)
+
+age.levene <- infer_levene_test(AG_PY_data,age, group_var = party)
+print(age.levene$p_lev)
+```
+
+Since the p-value is >0.05, we fail to reject the null hypothesis that the population of ages come from the same population. As a result, when performing our two sample t-test, we will use treat the variances between the Republican voter age population and Democratic voter age population the same.
+
+Finally, we can setup our t test as follows using a significance level of 0.05 (using mu to replace sigma from above, and same letters denoting party):
+$$
+\begin{aligned}
+H_0: &\mu_D = \mu_R\\
+H_a: &\mu_D \ne \mu_R
+\end{aligned}
+$$
+
+We also note that we will use a two-tailed test since we do not have prior evidence that the age of one group should be greater than the other.
+
+To conduct the t test:
+
 ```{r}
 t.test(AG_PY_data[AG_PY_data$party == 'D',]$age, 
        AG_PY_data[AG_PY_data$party == 'R',]$age, 
-       paired = FALSE)
+       paired = FALSE,
+       var.equal = TRUE)
 ```
 
-Effect size...
+Since the p-value is <<0.001 (and <0.05), we reject our null hypothesis in favor of the alterative hypothesis that the difference in age between Democratic voters and Republican voters are not 0. In fact, since the mean for Democratic voters are younger, the test also tests us that Democratic voters are on average statistically significantly younger.
+
+To evaluate effect size, we will use the the Cohen's D statistic from the library effsize
+
+```{r}
+library(effsize)
+cohen.d(AG_PY_data[AG_PY_data$party == 'R',]$age,
+        AG_PY_data[AG_PY_data$party == 'D',]$age)
+```
+
+Since our Cohen's D value is 0.246, it is between what is typically considered small (0.2) and medium (0.5). As a result, we have a reasonable small effect size. Even though the difference in age was significant due to the large sample size, the practical significance is small, meaning there is a significant overlap in age between Democratic and Republican voters.
 
 #Question 3
 
