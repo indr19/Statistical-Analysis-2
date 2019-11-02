@@ -299,6 +299,8 @@ cohen.d(AG_PY_data[AG_PY_data$party == 'R',]$age,
 
 Since our Cohen's D value is 0.246, it is between what is typically considered small (0.2) and medium (0.5). As a result, we have a reasonable small effect size. Even though the difference in age was significant due to the large sample size, the practical significance is small, meaning there is a significant overlap in age between Democratic and Republican voters.
 
+\pagebreak
+
 #Question 3
 
 Introduce your topic briefly.
@@ -368,4 +370,110 @@ print(cohen.g)
 
 We get an effect size close 0.2, which is within a medium effect size. Typically, the ranges are <0.15 is small, 0.15-0.25 is medium, and >=0.25 is large. We can conclude that our study is highly statistically significant with medium level of practical significance.
 
+\pagebreak
 
+#Question 4
+
+The voter turnout categories are stored in variables turnout16 and turnout18. We first note that the overall turnout for 2018 was actually lower than for 2016. However, they were also for very different races: 2016 was presidential and 2018 was for House and Senate. This was likely an important reason for the overall decline: these individuals felt that the presidential election likely has a bigger impact or of greater important. As a result, the question of which of anger or fear was more effective at driving voter increases will be limited to the sample of individuals that did not vote in 2016, but did vote in 2018. Also, we need to eliminate anyone who is 19 years or younger, since that means in 2016, they were less than 17, the legal voting age. In this case, we know that age a highly influential variable controlling their voting decision in 2018, and not fear or angry.
+
+There are also three groups for which anger and fear was measured. The first is on Donald Trump, second on immigration, and third on general feeling about conditions in the country. However, only the third is measured for all individuals. For the first two categories, only one was measured per participant chosen randomly. In order to calculate a participants fear and anger levels, the ranks for each answered categories can be summed together, but since we do not know the population baseline fear/anger weights for Trump versus immigration, we cannot guarantee normalized values per participant. As a result, we will only take geafraid, which was measured for all participants. 
+
+One deficiency for this operational definition is that we cannot actual measure casual relationships. The question we can answer is, for the group of individuals that were eligible to vote in 2018 but did not vote in 2016, was fear or anger levels higher amongst that group? We cannot actually determine whether either is casual, which would require careful controlled experimentation.
+
+The following preprocesses this:
+```{r}
+AG_FR_turnout <- A %>% 
+                  filter(turnout16 == 2 & turnout18 == 1) %>%
+                  filter(2018 - birthyr > 19) %>%
+                  select(turnout16, turnout18, geangry, geafraid, birthyr) %>%
+                  mutate(age = 2018 - birthyr)
+```
+
+
+To do an EDA, we can look at a summary for the geangry and geafraid variables:
+
+```{r}
+summary(AG_FR_turnout$geangry)
+summary(AG_FR_turnout$geafraid)
+```
+
+We see that both variables have the same logical min/max (based on possible values from the survey). The median for both is 3, but the mean for afraid and 3rd quartile for afraid were a little bit higher. Since we are measuring two ratings from the same individual, we can now generate a new variable that measures the difference between anger and fear levels based on this ordinal scale, and look at its summary:
+
+```{r}
+AG_FR_turnout$angry_minus_fear <- AG_FR_turnout$geangry - AG_FR_turnout$geafraid
+print(summary(AG_FR_turnout$angry_minus_fear))
+```
+
+The median is centered around 0, and mean is slightly negative, favoring anger over fear. We also do a sanity check that all ages are greater than or equal to 20 in the year 2018:
+
+```{r}
+stopifnot(AG_FR_turnout$age > 19)
+summary(AG_FR_turnout$age)
+```
+
+stopifnot returned true, and we can see from the summary that this is also the case.
+
+We can also visualize the difference between angry and fear levels with a histogram:
+
+```{r}
+ggplot(data = AG_FR_turnout, aes(x=angry_minus_fear)) +
+  geom_histogram(alpha=0.5,
+                 binwidth = 1) +
+  labs(title='Difference between anger and fear levels for 2018 voters that did not vote in 2016',
+       x='Difference per respondent', 
+       y = "Count") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylim(0,20)+
+  scale_x_continuous(breaks=seq(-1.5, 3.5, by=1))+
+  stat_bin(aes(y=..count.., label=ifelse(..count.. > 0, ..count.., "")), 
+           geom="text", 
+           vjust=-.5,
+           binwidth=1
+           )
+```
+
+We see from this histogram that for the majority, the difference was 0. However, the second largest category is -1, which means anger levels was 1 higher than fear.
+
+The most appropriate test here is the Wilcoxon signed-rank test. The assumptions of this test are:
+
+1. Data is paired, but each pair is iid. The data is certainly paired since it is the same respondent on two different questions. The samples certainly represent the pool of voters who responded to the survey, even if it does not represent all eligible US voters. We do not expected one participants responses from this survey to affect response from others, so we also safely claim independence in the responses.
+
+2. The differences are measured on at least an ordinal scale. Note that since this is the case. Our variables are naturally binned into an ordinal scale. As a result, we can subtract the ranks and look at, for each respondent, what the difference between anger and fear levels for 2018 voters that did not vote in 2016. 
+
+3. The distribution is symmetric around its mean and median. This is true under our null hypothesis, which is that the difference between the ranks of the two groups is 0. Possible values that the difference takes from integers going from -5 to +5. 
+
+More explicitly, let L represent the r.v. of the difference between anger and fear levels for our group of interest. We will test at a significance level of alpha = 0.05, as it is a commonly used value. We also note that we will use a two-tailed test since we do not have prior evidence that fear or anger is a more important factor for this group of individuals.
+
+
+$$
+\begin{aligned}
+H_0: &L = 0\\
+H_a: &L\ne 0
+\end{aligned}
+$$
+
+
+To conduct the test, we use the following:
+```{r}
+wilcox.test(AG_FR_turnout$geangry, 
+            AG_FR_turnout$geafraid,     
+            paired = TRUE)
+```
+
+We see that there's a very large p-value much greater than alpha. This means that we fail to reject H0 since we had a very high chance under H0 to see data as extreme as our sample. The conclusion is that neither anger nor fear levels were greater than the other within this group of individuals, and so we can propose that neither fear nor anger was more effective at driving voter turnout.
+
+In order to compute the effect size, we will use the general approach discussed in Async where we compute a correlation-like value by dividing the z-score of the p-value by sqrt(n). We can do this because our sample size is very large (n=1746 to be exact).
+$$
+r = \frac{z}{\sqrt{n}}
+$$
+
+Our proportion approach produces an effect size
+```{r }
+p.value <- 0.9601348 #from wilcox.test
+z.score <- -qnorm(p.value/2)
+effect.correlation <- z.score / sqrt(length(AG_FR_turnout$angry_minus_fear))
+print(effect.correlation)
+```
+
+The effect correlation r is very small, essentially negligible, as it is less than 0.1. As a result, there is neither a statistical or practical difference between anger and fear driving voter turnout.
