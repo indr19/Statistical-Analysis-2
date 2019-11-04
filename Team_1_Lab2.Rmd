@@ -89,7 +89,7 @@ ggplot(data = JR_PL_ordinal_data, aes(x=Police_minus_Journalist)) +
 We see that while the distribution mode is 0, but there are sharp peaks in the positive region skewing the data to the right (meaning these individuals rated the police higher than the journalists). 
 
 Based on your EDA, select an appropriate hypothesis test. 
-The most appropriate test here is the Wilcoxon signed-rank test. Modern research shows that this particular test works perfectly fine for ordinal data. The assumptions of this test are:
+The most appropriate test here is the Wilcoxon signed-rank test. Modern research shows that this particular test works fine for ordinal data. The assumptions of this test are:
 
 1. Data is paired, but each pair is iid. The data is certainly paired since it is the same respondent on two different questions. The samples certainly represent the pool of voters who responded to the survey, even if it does not represent all eligible US voters. We do not expected one participants responses from this survey to affect response from others, so we also safely claim independence in the responses.
 
@@ -115,7 +115,14 @@ wilcox.test(JR_PL_ordinal_data$`Police Rating`,
             paired = TRUE)
 ```
 
-We see that there's a very large statistical difference between the rating of the two groups, with a p-value << 0.001, and much less than alpha. This means that since p-value = 2.2e-16, if H0 was true, we had a 2.2e-16 chance of seeing data as least as extreme as what was observed. This is an extremely low value. We can then reject our null hypothesis in favor of the alternative that the difference in rating between the two groups is in fact not 0. Since the paired difference shows that the rating for police is typically higher than for journalists, the answer to our original question is that US voter have more respect for the police than they do for journalists.
+We see that there's a very large statistical difference between the rating of the two groups, with a p-value << 0.001, and much less than alpha. This means that since p-value = 2.2e-16, if H0 was true, we had a 2.2e-16 chance of seeing data as least as extreme as what was observed. This is an extremely low value. We can then reject our null hypothesis in favor of the alternative that the difference in rating between the two groups is in fact not 0. We can also quickly see that there are more observations for which the paired difference was positive for police minus journalists:
+
+```{r}
+sum(JR_PL_ordinal_data$Police_minus_Journalist > 0)
+sum(JR_PL_ordinal_data$Police_minus_Journalist < 0)
+```
+
+Since the paired difference shows that more individuals rated the police higher than for journalists, the answer to our original question is that US voter have more respect for the police than they do for journalists.
 
 In order to compute the effect size, we will use the general approach discussed in Async where we compute a correlation-like value by dividing the z-score of the p-value by sqrt(n). We can do this because our sample size is very large (n=1746 to be exact).
 $$
