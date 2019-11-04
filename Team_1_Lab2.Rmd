@@ -327,7 +327,10 @@ One caveat to using the russian16 variable is that survey takers needed the back
 
 ```{r}
 FBI_IN_data <- A %>% filter(pid7x <= 5 & pid7x >=3) %>% 
+<<<<<<< HEAD
   filter(reg <= 2, reg>0) %>%
+=======
+>>>>>>> origin/master
   select(russia16)
 ```
 
@@ -341,7 +344,11 @@ sum(FBI_IN_data$russia16 == 1)
 sum(FBI_IN_data$russia16 == 2)
 ```
 
+<<<<<<< HEAD
 We can see that the minimum value is -7 and maximum is 7, meaning some subset of Independent voters skipped this questions. However, there is only a single respondent who skipped this question, so we need to remove that individual. There are a total of 320 individuals who believed that Russia probably interfered (there was a base), and 263 that believed that Russia probably did not (baseless). We can generate a bar plot of this binary variable.
+=======
+We can see that the minimum value is -7 and maximum is 7, meaning some subset of Independent voters skipped this questions. However, there is only a single respondent who skipped this question, so we need to remove that individual. There are a total of 429 individuals who believed that Russia probably interfered (there was a base), and 360 that believed that Russia probably did not (baseless). We can generate a bar plot of this binary variable.
+>>>>>>> origin/master
 
 ```{r}
 Count <- c(sum(FBI_IN_data==1), sum(FBI_IN_data==2))
@@ -392,7 +399,11 @@ cohen.g <- abs(sum(FBI_IN_data$russia16 ==  2) / length(FBI_IN_data$russia16) - 
 print(cohen.g)
 ```
 
+<<<<<<< HEAD
 We get an effect size close 0.064, which is very small. Typically, the ranges are <0.15 is small, 0.15-0.25 is medium, and >=0.25 is large. We can conclude that our study is highly statistically significant with low level of practical significance. This makes sense since almost 46% of the population believe the investigation was baseless. This is very close to 50%, but certainly still not a majority.
+=======
+We get an effect size close 0.042, which is very small. Typically, the ranges are <0.15 is small, 0.15-0.25 is medium, and >=0.25 is large. We can conclude that our study is highly statistically significant with low level of practical significance. This makes sense since almost 46% of the population believe the investigation was baseless. This is very close to 50%, but certainly still not a majority.
+>>>>>>> origin/master
 
 \pagebreak
 
