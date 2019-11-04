@@ -327,10 +327,7 @@ One caveat to using the russian16 variable is that survey takers needed the back
 
 ```{r}
 FBI_IN_data <- A %>% filter(pid7x <= 5 & pid7x >=3) %>% 
-<<<<<<< HEAD
   filter(reg <= 2, reg>0) %>%
-=======
->>>>>>> origin/master
   select(russia16)
 ```
 
@@ -344,11 +341,8 @@ sum(FBI_IN_data$russia16 == 1)
 sum(FBI_IN_data$russia16 == 2)
 ```
 
-<<<<<<< HEAD
 We can see that the minimum value is -7 and maximum is 7, meaning some subset of Independent voters skipped this questions. However, there is only a single respondent who skipped this question, so we need to remove that individual. There are a total of 320 individuals who believed that Russia probably interfered (there was a base), and 263 that believed that Russia probably did not (baseless). We can generate a bar plot of this binary variable.
-=======
-We can see that the minimum value is -7 and maximum is 7, meaning some subset of Independent voters skipped this questions. However, there is only a single respondent who skipped this question, so we need to remove that individual. There are a total of 429 individuals who believed that Russia probably interfered (there was a base), and 360 that believed that Russia probably did not (baseless). We can generate a bar plot of this binary variable.
->>>>>>> origin/master
+
 
 ```{r}
 Count <- c(sum(FBI_IN_data==1), sum(FBI_IN_data==2))
@@ -399,19 +393,16 @@ cohen.g <- abs(sum(FBI_IN_data$russia16 ==  2) / length(FBI_IN_data$russia16) - 
 print(cohen.g)
 ```
 
-<<<<<<< HEAD
 We get an effect size close 0.064, which is very small. Typically, the ranges are <0.15 is small, 0.15-0.25 is medium, and >=0.25 is large. We can conclude that our study is highly statistically significant with low level of practical significance. This makes sense since almost 46% of the population believe the investigation was baseless. This is very close to 50%, but certainly still not a majority.
-=======
-We get an effect size close 0.042, which is very small. Typically, the ranges are <0.15 is small, 0.15-0.25 is medium, and >=0.25 is large. We can conclude that our study is highly statistically significant with low level of practical significance. This makes sense since almost 46% of the population believe the investigation was baseless. This is very close to 50%, but certainly still not a majority.
->>>>>>> origin/master
 
 \pagebreak
 
 #Question 4
 
-The voter turnout categories are stored in variables turnout16 and turnout18. We first note that the overall turnout for 2018 was actually lower than for 2016. However, they were also for very different races: 2016 was presidential and 2018 was for House and Senate. This was likely an important reason for the overall decline: these individuals felt that the presidential election likely has a bigger impact or of greater important. As a result, the question of which of anger or fear was more effective at driving voter increases will be limited to the sample of individuals that did not vote in 2016, but did vote in 2018. Also, we need to eliminate anyone who is 19 years or younger, since that means in 2016, they were less than 17, the legal voting age. In this case, we know that age a highly influential variable controlling their voting decision in 2018, and not fear or angry.
+The voter turnout categories are stored in variables turnout16 and turnout18. We first note that the overall turnout for 2018 was actually lower than for 2016. However, they were also for very different races: 2016 was presidential and 2018 was for House and Senate. This was likely an important reason for the overall decline: these individuals felt that the presidential election likely has a bigger impact or of greater important. As a result, the question of which of anger or fear was more effective at driving voter increases will be limited to the sample of individuals that did not vote in 2016, but did vote in 2018. Also, we need to eliminate anyone who is 19 years or younger, since that means in 2016, they were less than 17 and below the legal voting age. In this case, we know that age dictated whether they voted in 2018.
 
 There are also three groups for which anger and fear was measured. The first is on Donald Trump, second on immigration, and third on general feeling about conditions in the country. However, only the third is measured for all individuals. For the first two categories, only one was measured per participant chosen randomly. In order to calculate a participants fear and anger levels, the ranks for each answered categories can be summed together, but since we do not know the population baseline fear/anger weights for Trump versus immigration, we cannot guarantee normalized values per participant. As a result, we will only take geafraid, which was measured for all participants. 
+In order to determine whether fear or anger was more important in driving these voters to the polls, we will determine for each individual whether anger or fear was more important by subtracting the ranks each person provided for geafraid and geangry. We assume here that for each person, their scales for anger and fear are somewhat comparable in that if they choose 4 for anger and 3 for fear, anger was a more important factor for that individual. If the levels are the same, then neither fear nor anger drove them. In order to address the question whether anger or fear was more important, we will eliminate individuals that did not seem to be influenced by more than onr or the other. By doing this, we can classify individuals into more angry or more fearful categories, and perform a binom.testal test for proportion.
 
 One deficiency for this operational definition is that we cannot actual measure casual relationships. The question we can answer is, for the group of individuals that were eligible to vote in 2018 but did not vote in 2016, was fear or anger levels higher amongst that group? We cannot actually determine whether either is casual, which would require careful controlled experimentation.
 
@@ -420,26 +411,22 @@ The following preprocesses this:
 AG_FR_turnout <- A %>% 
                   filter(turnout16 == 2 & turnout18 == 1) %>%
                   filter(2018 - birthyr > 19) %>%
+                  filter(reg > 0 & reg <=2) %>%
                   select(turnout16, turnout18, geangry, geafraid, birthyr) %>%
-                  mutate(age = 2018 - birthyr)
+                  mutate(age = 2018 - birthyr) %>%
+                  mutate(angry_minus_fear = geangry - geafraid)
 ```
 
 
 To do an EDA, we can look at a summary for the geangry and geafraid variables:
 
 ```{r}
-summary(AG_FR_turnout$geangry)
-summary(AG_FR_turnout$geafraid)
+summary(AG_FR_turnout$angry_minus_fear)
 ```
 
-We see that both variables have the same logical min/max (based on possible values from the survey). The median for both is 3, but the mean for afraid and 3rd quartile for afraid were a little bit higher. Since we are measuring two ratings from the same individual, we can now generate a new variable that measures the difference between anger and fear levels based on this ordinal scale, and look at its summary:
+We see that the median of the difference is 0, as is the mean. However, the minimum is -2 (meaning anger was less of an issue for these individuals) and maximum is +3 (meaning anger was more an issue for these individuals).
 
-```{r}
-AG_FR_turnout$angry_minus_fear <- AG_FR_turnout$geangry - AG_FR_turnout$geafraid
-print(summary(AG_FR_turnout$angry_minus_fear))
-```
-
-The median is centered around 0, and mean is slightly negative, favoring anger over fear. We also do a sanity check that all ages are greater than or equal to 20 in the year 2018:
+We also do a sanity check that all ages are greater than or equal to 20 in the year 2018:
 
 ```{r}
 stopifnot(AG_FR_turnout$age > 19)
@@ -470,45 +457,40 @@ ggplot(data = AG_FR_turnout, aes(x=angry_minus_fear)) +
 
 We see from this histogram that for the majority, the difference was 0. However, the second largest category is -1, which means anger levels was 1 higher than fear.
 
-The most appropriate test here is the Wilcoxon signed-rank test. The assumptions of this test are:
+The most appropriate test here is the binomial test for proportion. The assumptions of this test are:
 
-1. Data is paired, but each pair is iid. The data is certainly paired since it is the same respondent on two different questions. The samples certainly represent the pool of voters who responded to the survey, even if it does not represent all eligible US voters. We do not expected one participants responses from this survey to affect response from others, so we also safely claim independence in the responses.
+1. Samples are dichotomous and nominal. This is certainly the case here after the transformation: the subjects are classified as either more angry or more afraid, which does not have a numerical value associated with them.
 
-2. The differences are measured on at least an ordinal scale. Note that since this is the case. Our variables are naturally binned into an ordinal scale. As a result, we can subtract the ranks and look at, for each respondent, what the difference between anger and fear levels for 2018 voters that did not vote in 2016. 
+2. iid samples. This is the case since each subject's decision in the survey does not influence other subjects. In terms of identical distribution, this can be assumed since all subjects are drawn from the population of survey takers.
 
-3. The distribution is symmetric around its mean and median. This is true under our null hypothesis, which is that the difference between the ranks of the two groups is 0. Possible values that the difference takes from integers going from -5 to +5. 
-
-More explicitly, let L represent the r.v. of the difference between anger and fear levels for our group of interest. We will test at a significance level of alpha = 0.05, as it is a commonly used value. We also note that we will use a two-tailed test since we do not have prior evidence that fear or anger is a more important factor for this group of individuals.
+More explicitly, let L represent the proportion of individuals in which anger was more important for driving them to the voting polls. We will test at a significance level of alpha = 0.05 to see if L was 0.5. We also note that we will use a two-tailed test since we do not have prior evidence that fear or anger is a more important factor for this group of individuals. 
 
 
 $$
 \begin{aligned}
-H_0: &L = 0\\
-H_a: &L\ne 0
+H_0: &L = 0.5\\
+H_a: &L\ne 0.5
 \end{aligned}
 $$
 
 
-To conduct the test, we use the following:
+To conduct the test, we transform the variables and use the following:
 ```{r}
-wilcox.test(AG_FR_turnout$geangry, 
-            AG_FR_turnout$geafraid,     
-            paired = TRUE)
+anger_more_important <- sum(AG_FR_turnout$angry_minus_fear > 0)
+trials <- sum(AG_FR_turnout$angry_minus_fear != 0)
+binom.test(anger_more_important,
+          trials,
+          p = 0.5,
+          alternative = 't')
 ```
 
-We see that there's a very large p-value much greater than alpha. This means that we fail to reject H0 since we had a very high chance under H0 to see data as extreme as our sample. The conclusion is that neither anger nor fear levels were greater than the other within this group of individuals, and so we can propose that neither fear nor anger was more effective at driving voter turnout.
+We see that the p-value is very large, much larger than 0.05. This means that we fail to reject H0 as we have a high chance under H0 to see data as extreme as our sample. The conclusion is that neither anger nor fear levels were greater than the other within this group of individuals, and so we can propose that neither fear nor anger was more effective at driving voter turnout.
 
-In order to compute the effect size, we will use the general approach discussed in Async where we compute a correlation-like value by dividing the z-score of the p-value by sqrt(n). We can do this because our sample size is very large (n=1746 to be exact).
-$$
-r = \frac{z}{\sqrt{n}}
-$$
+In order to calculate the practical significance, we will use the metric of Cohen's g, which is valid for the one-sample binomial test where the null hypothesis states that the proportion is 0.5. This is exactly our case here. Proportionally speaking, the fraction of individuals for which fear was more important was larger.
 
-Our proportion approach produces an effect size
-```{r }
-p.value <- 0.9601348 #from wilcox.test
-z.score <- -qnorm(p.value/2)
-effect.correlation <- z.score / sqrt(length(AG_FR_turnout$angry_minus_fear))
-print(effect.correlation)
+```{r}
+cohen.g <- abs(sum(AG_FR_turnout$angry_minus_fear > 0) / trials - 0.5)
+print(cohen.g)
 ```
 
-The effect correlation r is very small, essentially negligible, as it is less than 0.1. As a result, there is neither a statistical or practical difference between anger and fear driving voter turnout.
+The effect correlation r is very small, essentially negligible, as it is less than 0.1. This is consistent with the fact that for 7/17 individuals, or ~41%, anger was important than fear, and for about ~59% of individuals, fear was more important, which for this small sample size, data at least as extreme occur by chance ~63% of the time if the true proportion was 0.5. As a result, there is neither a statistical or practical difference between anger and fear driving voter turnout.
