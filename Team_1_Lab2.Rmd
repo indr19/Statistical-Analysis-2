@@ -15,7 +15,7 @@ General data analysis:
 Data quality is very important in statistical analysis. Since incorrect data can lead to incorrect results, we wanted to only perform analysis on individuals whose responses were trustworthy. Namely, we pre-filtered our participants based on their "RESPONSE QUALITY" questions. We only considered those who were "Never" or "Some of the time" insincere in their responses, and those who were answered questions honestly "Most of the time" or "Always." For those who were most of the time honest and sincere, a majority of their answers were reliable, so they will provide correct information more often than incorrect information. To do this, we generated a new dataset stored under A. The reduced the sample from 2500 samples to 2064 samples:
 
 ```{r}
-setwd("~/Desktop/Stone/Berkeley_MIDS/Statistics/github/lab_2/")
+suppressWarnings(setwd("~/Desktop/Stone/Berkeley_MIDS/Statistics/github/lab_2/"))
 full_data <- read.csv('anes_pilot_2018.csv')
 
 library(ggplot2)
@@ -58,7 +58,7 @@ JR_PL_ordinal_data$Police_minus_Journalist <-
   JR_PL_ordinal_data$`Police Rating` - 
   JR_PL_ordinal_data$`Journalist Rating`
 ```
-```
+
 
 In order to perform EDA on the distribution of the difference between ranks, we have first look at summary statistics for the difference of Police rating minus Journalist rating for each voter. 
 ```{r }
